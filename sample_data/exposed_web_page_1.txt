@@ -1,0 +1,17 @@
+Acme Health Clinic - Discharge Summary Export (auto-generated batch report)
+
+Patient: Jordan Smith
+DOB: 03/14/1985
+MRN: ACME-0004521
+Diagnosis: treatment for J45.909 (asthma, unspecified)
+Policy No: BC1234567
+SSN: 123-45-6789
+
+Patient: Taylor Brooks
+DOB: 07/02/1990
+MRN: ACME-0004522
+Diagnosis: patient prescribed medication for I10 (hypertension)
+Policy No: BC7654321
+
+This file was exported nightly from the EHR system for internal QA and
+accidentally left in a public-facing reports directory.

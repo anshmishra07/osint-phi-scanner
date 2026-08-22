@@ -1,0 +1,9 @@
+# config.py - accidentally committed to a public fork
+
+# Synthetic scanner fixtures — deliberately invalid; never provider credentials.
+AWS_ACCESS_KEY_ID = "DEMO_AWS_ACCESS_KEY_ID_NOT_VALID"
+aws_secret_access_key = "demo_secret_for_scanner_only_not_valid"
+
+DATABASE_URL = "postgres://ehr_admin:Sup3rSecretPW1@db.acmehealth-internal.com:5432/ehr_prod"
+
+API_KEY = "demo_api_key_for_scanner_only_0001"
