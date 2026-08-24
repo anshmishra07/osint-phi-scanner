@@ -22,14 +22,36 @@ uvicorn app.main:app           # start the API
 ```
 
 The app defaults to `mongodb://127.0.0.1:27017` and database `phi_scanner`.
-Set `MONGODB_URI` or `MONGODB_DATABASE` only for another **local** MongoDB
-instance; hosted and non-local URIs are rejected in this offline MVP.
+Set `MONGODB_URI` and `MONGODB_DATABASE` for another MongoDB instance. Valid
+URI schemes are `mongodb://` and `mongodb+srv://`; never commit a connection
+string containing credentials.
 
 Then visit http://localhost:8000/docs for the interactive API.
 
 On this Windows setup, run without `--reload`: the watcher uses a named pipe
 that may be blocked by local permissions (`WinError 5`). Stop and re-run the
 command after code changes instead.
+
+## Deploy on Railway
+
+This repository includes `railway.toml`, which starts the API on Railway's
+assigned `PORT` and checks `/health` after deployment.
+
+1. In Railway, create a project and add the official **MongoDB** database
+   service. Keep it private; attach a persistent volume and configure backups
+   before storing any non-demo data.
+2. Add a service from this GitHub repository and generate a public domain in
+   its Networking settings.
+3. In the API service's Variables tab, set `MONGODB_URI` to the Railway
+   reference `${{MongoDB.MONGO_URL}}` (replace `MongoDB` with the exact
+   database service name), and set `MONGODB_DATABASE=phi_scanner`.
+4. Do not add `.env` to Git or upload it. This MVP's GitHub scanner deliberately
+   reads `GITHUB_TOKEN` from a local `.env` only, so GitHub discovery remains
+   disabled in a hosted deployment until a separate production secret-management
+   design is approved.
+5. Deploy and open `https://<your-domain>/docs`. Do not expose the MongoDB
+   service through a public TCP proxy unless there is a specific operational
+   need and its access is restricted.
 
 ## Optional authorized discovery
 

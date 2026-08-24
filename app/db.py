@@ -1,25 +1,18 @@
-"""Local-only MongoDB connection and collection helpers."""
+"""MongoDB connection and collection helpers for local and hosted deployments."""
 import os
 
 from pymongo import ASCENDING, DESCENDING, MongoClient, ReturnDocument
 from pymongo.errors import ServerSelectionTimeoutError
-from pymongo.uri_parser import parse_uri
 
 MONGODB_URI = os.getenv("MONGODB_URI", "mongodb://127.0.0.1:27017")
 MONGODB_DATABASE = os.getenv("MONGODB_DATABASE", "phi_scanner")
-_LOCAL_HOSTS = {"localhost", "127.0.0.1", "::1"}
+def _require_supported_uri(uri: str) -> None:
+    """Accept only standard MongoDB URI schemes without logging credentials."""
+    if not uri.startswith(("mongodb://", "mongodb+srv://")):
+        raise RuntimeError("MONGODB_URI must use mongodb:// or mongodb+srv://.")
 
 
-def _require_local_uri(uri: str) -> None:
-    """Prevent this offline MVP from being pointed at a hosted MongoDB."""
-    if not uri.startswith("mongodb://"):
-        raise RuntimeError("Offline mode only supports a local mongodb:// URI.")
-    hosts = {host for host, _port in parse_uri(uri)["nodelist"]}
-    if not hosts or not hosts.issubset(_LOCAL_HOSTS):
-        raise RuntimeError("Offline mode requires MongoDB on localhost or 127.0.0.1.")
-
-
-_require_local_uri(MONGODB_URI)
+_require_supported_uri(MONGODB_URI)
 client = MongoClient(MONGODB_URI, serverSelectionTimeoutMS=2_000)
 database = client[MONGODB_DATABASE]
 
