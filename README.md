@@ -42,8 +42,19 @@ pattern:
 python -m app.discovery.run_scan --tenant-id 1
 ```
 
+Or, once the API is running, use `POST /tenants/{tenant_id}/discovery`. This
+fetches the authorized domain home page even when no sitemap exists, plus any
+same-domain sitemap pages and public GitHub code-search results for registered
+`github_org` or `github_user` assets. Register a GitHub organization or a
+personal account as either its account name or `https://github.com/<account>`;
+set a fine-grained GitHub token with read access to that authorized account in
+`GITHUB_TOKEN`. Only public GitHub file contents
+returned by GitHub's API are fetched; the scanner never uses discovered keys.
+
 The crawler reads `robots.txt` and XML sitemaps only from authorized domains,
-then revalidates every discovered URL before fetching. It is not a web-wide
+then revalidates every discovered URL before fetching. Explicitly registered
+test domains (such as `example.com`) are permitted for end-to-end mechanics
+checks. It is not a web-wide
 search engine or search-result scraper. GitHub searches are restricted to
 registered `github_org` patterns. Cloud-bucket probing remains disabled until
 ownership verification is implemented; a naming prefix alone is not sufficient

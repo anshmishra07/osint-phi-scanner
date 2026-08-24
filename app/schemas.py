@@ -36,6 +36,13 @@ class ScanRequest(BaseModel):
     asset_criticality: str = "unknown"
 
 
+class DiscoveryRunOut(BaseModel):
+    tenant_id: int
+    discovered: int
+    processed: int
+    findings: int
+
+
 class FindingOut(BaseModel):
     id: int
     tenant_id: int

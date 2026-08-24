@@ -9,6 +9,7 @@ class AssetType(str, enum.Enum):
     EMAIL_DOMAIN = "email_domain"
     CLOUD_BUCKET_PREFIX = "cloud_bucket_prefix"
     GITHUB_ORG = "github_org"
+    GITHUB_USER = "github_user"
     DOC_FINGERPRINT = "doc_fingerprint"
     IDENTIFIER_PATTERN = "identifier_pattern"
 

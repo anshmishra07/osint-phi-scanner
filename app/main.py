@@ -3,13 +3,15 @@ from fastapi.responses import RedirectResponse
 from pymongo import ReturnDocument
 
 from app.db import get_db, initialize_database, next_id
-from app.models.tenant import Tenant, AssetPattern
+from app.models.tenant import Tenant, AssetPattern, AssetType
 from app.models.finding import Finding
 from app.schemas import (
-    TenantCreate, TenantOut, AssetPatternCreate, ScanRequest, FindingOut, StatusUpdate
+    TenantCreate, TenantOut, AssetPatternCreate, ScanRequest, FindingOut, StatusUpdate, DiscoveryRunOut
 )
 from app.pipeline import process_candidate
 from app.remediation.playbooks import get_playbook
+from app.discovery.connectors import _github_orgs, _github_users, is_authorized_domain_url, is_authorized_github_url
+from app.discovery.run_scan import run as run_discovery
 
 app = FastAPI(
     title="PHI Exposure Scanner",
@@ -50,6 +52,14 @@ def add_asset_pattern(tenant_id: int, payload: AssetPatternCreate, db=Depends(ge
     value = payload.value.strip()
     if payload.asset_type == "domain":
         value = value.lower().removeprefix("https://").removeprefix("http://").rstrip("/")
+        if not value or "/" in value or "?" in value or "#" in value:
+            raise HTTPException(422, "A domain asset must be a bare domain, without a path or query string.")
+    if payload.asset_type in {AssetType.GITHUB_ORG, AssetType.GITHUB_USER}:
+        candidate = AssetPattern(id=0, tenant_id=tenant_id, asset_type=payload.asset_type, value=value)
+        accounts = _github_orgs([candidate]) if payload.asset_type == AssetType.GITHUB_ORG else _github_users([candidate])
+        if len(accounts) != 1:
+            raise HTTPException(422, "GitHub asset must be an account name or https://github.com/<account>.")
+        value = accounts[0]
     existing = db.asset_patterns.find_one({
         "tenant_id": tenant_id, "asset_type": payload.asset_type.value, "value": value,
     })
@@ -90,7 +100,15 @@ def scan_candidate(payload: ScanRequest, db=Depends(get_db)):
             "Tenant authorization not confirmed. Cannot scan without a signed "
             "authorization reference (see app/models/tenant.py).",
         )
+    patterns = [AssetPattern.from_document(item) for item in db.asset_patterns.find({"tenant_id": tenant.id})]
+    domains = [pattern.value for pattern in patterns if pattern.asset_type == AssetType.DOMAIN]
+    if payload.source_type == "web_page" and not is_authorized_domain_url(payload.url, domains):
+        raise HTTPException(403, "The URL is outside this tenant's registered domain assets.")
+    github_accounts = [*_github_orgs(patterns), *_github_users(patterns)]
+    if payload.source_type == "code_repo" and not is_authorized_github_url(payload.url, github_accounts):
+        raise HTTPException(403, "The GitHub URL is outside this tenant's registered GitHub organizations.")
 
+    identifier_patterns = [pattern.value for pattern in patterns if pattern.asset_type == AssetType.IDENTIFIER_PATTERN]
     finding = process_candidate(
         db=db,
         tenant=tenant,
@@ -99,8 +117,26 @@ def scan_candidate(payload: ScanRequest, db=Depends(get_db)):
         text=payload.text,
         accessibility=payload.accessibility,
         asset_criticality=payload.asset_criticality,
+        tenant_identifier_regex=identifier_patterns[0] if identifier_patterns else None,
     )
     return finding
+
+
+@app.post("/tenants/{tenant_id}/discovery", response_model=DiscoveryRunOut)
+def discover_tenant_assets(tenant_id: int, db=Depends(get_db)):
+    """Run the authorized live-site and GitHub discovery connectors."""
+    if not db.tenants.find_one({"id": tenant_id}):
+        raise HTTPException(404, "Tenant not found")
+    try:
+        result = run_discovery(tenant_id)
+    except RuntimeError as exc:
+        raise HTTPException(403, str(exc)) from exc
+    return DiscoveryRunOut(
+        tenant_id=tenant_id,
+        discovered=result.discovered,
+        processed=result.processed,
+        findings=result.findings,
+    )
 
 
 @app.get("/tenants/{tenant_id}/findings", response_model=list[FindingOut])
